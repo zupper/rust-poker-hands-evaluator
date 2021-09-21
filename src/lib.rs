@@ -147,13 +147,15 @@ impl Card {
     }
 }
 
-struct ComboMap<'a> {
+struct RankGroupMap<'a> {
     map: HashMap<&'a str, Vec<Rank>>
 }
 
-impl <'a>ComboMap<'a> {
+type RankFreq<'a> = (&'a Rank, &'a u8);
+
+impl <'a>RankGroupMap<'a> {
     fn new() -> Self {
-        ComboMap {
+        RankGroupMap {
             map: HashMap::new()
         }
     }
@@ -179,36 +181,35 @@ impl Combo {
         ranks
     }
 
-    fn enumerate(ranks: &Vec<Rank>) -> HashMap<Rank, u32> {
-        let mut map = HashMap::<Rank, u32>::new();
-        for rank in ranks.iter() {
-            let count = map.entry(*rank).or_insert(0);
-            *count += 1;
-        }
-        map
+    fn count_each_rank(mut acc: HashMap<Rank, u8>, rank: &Rank) -> HashMap<Rank, u8> {
+        let count = acc.entry(*rank).or_insert(0);
+        *count += 1;
+        acc
     }
 
-    fn collect_proto_combos(ranks: &HashMap<Rank, u32>) -> ComboMap {
+    fn group_ranks<'a>(mut acc: RankGroupMap<'a>, entry: RankFreq) -> RankGroupMap<'a> {
+        let (rank, count) = entry;
+        let key = match count {
+            4 => Some("quadruplet"),
+            3 => Some("triplet"),
+            2 => Some("pairs"),
+            1 => Some("singles"),
+            _ => None,
+        };
+
+        if let Some(key) = key {
+            acc.insert(key, &rank);
+        };
+
+        acc
+    }
+
+    fn enumerate(ranks: &Vec<Rank>) -> RankGroupMap {
         ranks
             .iter()
-            .fold(
-                ComboMap::new(),
-                |mut map, (rank, count)| {
-                    let key = match *count {
-                        4 => Some("quadruplet"),
-                        3 => Some("triplet"),
-                        2 => Some("pairs"),
-                        1 => Some("singles"),
-                        _ => None,
-                    };
-
-                    if let Some(key) = key {
-                        map.insert(key, rank);
-                    };
-
-                    map
-                }
-            )
+            .fold(HashMap::new(), Combo::count_each_rank)
+            .iter()
+            .fold(RankGroupMap::new(), Combo::group_ranks)
     }
 
     fn get_straight(ranks: &Vec<Rank>) -> Option<Combo> {
@@ -249,8 +250,7 @@ impl Combo {
 
     fn new(cards: &Vec<Card>) -> Self {
         let ranks = Combo::to_ranks(cards);
-        let rank_map = Combo::enumerate(&ranks);
-        let combos_map = Combo::collect_proto_combos(&rank_map);
+        let combos_map = Combo::enumerate(&ranks);
 
         if let (Some(t), Some(p)) = (combos_map.get("triplet"), combos_map.get("pairs")) {
             return Combo {
