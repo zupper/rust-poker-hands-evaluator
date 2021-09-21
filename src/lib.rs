@@ -212,7 +212,13 @@ impl Combo {
             .fold(RankGroupMap::new(), Combo::group_ranks)
     }
 
-    fn get_straight(ranks: &Vec<Rank>) -> Option<Combo> {
+    fn get_straight(g: &RankGroupMap) -> Option<Combo> {
+        let ranks = g.get("singles");
+        if let None = ranks {
+            return None;
+        }
+
+        let ranks = ranks.unwrap();
         if ranks == &vec![Rank::Ace, Rank::Five, Rank::Four, Rank::Three, Rank::Two] {
             Some(Combo {
                 combo_type: ComboType::Straight,
@@ -248,61 +254,103 @@ impl Combo {
         true
     }
 
-    fn new(cards: &Vec<Card>) -> Self {
-        let ranks = Combo::to_ranks(cards);
-        let combos_map = Combo::enumerate(&ranks);
-
-        if let (Some(t), Some(p)) = (combos_map.get("triplet"), combos_map.get("pairs")) {
-            return Combo {
+    fn get_full_house(g: &RankGroupMap) -> Option<Combo> {
+        if let (Some(t), Some(p)) = (g.get("triplet"), g.get("pairs")) {
+            return Some(Combo {
                 combo_type: ComboType::FullHouse,
                 ranks: vec![t[0], p[0]]
-            }
+            })
         }
 
-        let singles = combos_map.get("singles").unwrap();
-        if let Some(q) = combos_map.get("quadruplet") {
-            return Combo {
+        None
+    }
+
+    fn get_four_of_a_kind(g: &RankGroupMap) -> Option<Combo> {
+        if let (Some(q), Some(s)) = (g.get("quadruplet"), g.get("singles")) {
+            return Some(Combo {
                 combo_type: ComboType::FourOfAKind,
-                ranks: vec![q[0], singles[0]]
-            }
+                ranks: vec![q[0], s[0]]
+            })
         }
 
-        if let Some(t) = combos_map.get("triplet") {
-            return Combo {
+        None
+    }
+
+    fn get_three_of_a_kind(g: &RankGroupMap) -> Option<Combo> {
+        if let (Some(t), Some(s)) = (g.get("triplet"), g.get("singles")) {
+            return Some(Combo {
                 combo_type: ComboType::ThreeOfAKind,
-                ranks: vec![t[0], singles[0], singles[1]]
-            }
+                ranks: vec![t[0], s[0], s[1]]
+            })
         }
 
-        if let Some(p) = combos_map.get("pairs") {
+        None
+    }
+
+    fn get_one_or_two_pairs(g: &RankGroupMap) -> Option<Combo> {
+        if let (Some(p), Some(s)) = (g.get("pairs"), g.get("singles")) {
             return match p.len() {
-                2 => Combo { combo_type: ComboType::TwoPair, ranks: vec![p[0], p[1], singles[0]] },
-                1 => Combo { combo_type: ComboType::OnePair, ranks: vec![p[0], singles[0], singles[1], singles[2]] },
-                _ => panic!("Opps")
+                2 => Some(Combo { combo_type: ComboType::TwoPair, ranks: vec![p[0], p[1], s[0]] }),
+                1 => Some(Combo { combo_type: ComboType::OnePair, ranks: vec![p[0], s[0], s[1], s[2]] }),
+                _ => None
             }
         }
 
-        if Combo::are_cards_of_same_suite(cards) && Combo::get_straight(singles).is_some() {
-            return Combo {
-                combo_type: ComboType::StraightFlush,
-                ranks: singles.clone()
+        None
+    }
+
+    fn get_straight_flush(g: &RankGroupMap, c: &Vec<Card>) -> Option<Combo> {
+        if let Some(s) = g.get("singles") {
+            if Combo::are_cards_of_same_suite(&c) && Combo::get_straight(g).is_some() {
+                return Some(Combo {
+                    combo_type: ComboType::StraightFlush,
+                    ranks: s.clone()
+                })
             }
         }
 
-        if let Some(straight) = Combo::get_straight(singles) {
-            return straight
-        }
+        None
+    }
 
-        if Combo::are_cards_of_same_suite(cards) {
-            return Combo {
-                combo_type: ComboType::Flush,
-                ranks: singles.clone()
+    fn get_flush(g: &RankGroupMap, c: &Vec<Card>) -> Option<Combo> {
+        if let Some(s) = g.get("singles") {
+            if Combo::are_cards_of_same_suite(&c) {
+                return Some(Combo {
+                    combo_type: ComboType::Flush,
+                    ranks: s.clone()
+                })
             }
         }
 
-        return Combo {
-            combo_type: ComboType::HighCard,
-            ranks: singles.clone()
+        None
+    }
+
+    fn get_high_card(g: &RankGroupMap) -> Option<Combo> {
+        if let Some(s) = g.get("singles") {
+            return Some(Combo {
+                combo_type: ComboType::HighCard,
+                ranks: s.clone()
+            })
+        }
+
+        None
+    }
+
+
+    fn new(cards: &Vec<Card>) -> Self {
+        let ranks = Combo::to_ranks(cards);
+        let rank_groups = Combo::enumerate(&ranks);
+
+        if      let Some(c) = Combo::get_full_house(&rank_groups) { c }
+        else if let Some(c) = Combo::get_four_of_a_kind(&rank_groups) { c }
+        else if let Some(c) = Combo::get_three_of_a_kind(&rank_groups) { c }
+        else if let Some(c) = Combo::get_one_or_two_pairs(&rank_groups) { c }
+        else if let Some(c) = Combo::get_straight_flush(&rank_groups, cards) { c }
+        else if let Some(c) = Combo::get_straight(&rank_groups) { c }
+        else if let Some(c) = Combo::get_flush(&rank_groups, cards) { c }
+        else if let Some(c) = Combo::get_high_card(&rank_groups) { c }
+        else {
+            panic!("must... have... combo...");
         }
     }
 }
