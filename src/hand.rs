@@ -94,10 +94,10 @@ impl Card {
         }
 
         let len = input.len();
-        let rank = Rank::new(&input[..len - 1]);
-        let suite = Suite::new(&input[len - 1..len]);
-
-        (rank, suite)
+        (
+            Rank::new(&input[..len - 1]),
+            Suite::new(&input[len - 1..len]),
+        )
     }
 
     fn is_card_format_valid(card: &str) -> bool {

@@ -121,44 +121,46 @@ impl Combo {
 
     fn get_straight(g: &RankGroupMap) -> Option<Combo> {
         let ranks = g.get("singles");
-        if let None = ranks {
+        if ranks.is_none() {
             return None;
         }
 
         let ranks = ranks.unwrap();
         if ranks == &vec![Rank::Ace, Rank::Five, Rank::Four, Rank::Three, Rank::Two] {
-            Some(Combo {
+            return Some(Combo {
                 combo_type: ComboType::Straight,
                 ranks: vec![Rank::Five, Rank::Four, Rank::Three, Rank::Two, Rank::Ace]
             })
         }
-        else {
-            let len = ranks.len();
-            for (i, rank) in ranks.iter().enumerate() {
-                if i == len - 1 { break; }
 
-                let val1 = *rank as i32;
-                let val2 = ranks[i + 1] as i32;
-                if (val1 - val2).abs() != 1 {
-                    return None;
-                }
-            }
-
-            Some(Combo {
+        if Combo::are_ranks_sequential(ranks) {
+            return Some(Combo {
                 combo_type: ComboType::Straight,
-                ranks: vec![ranks[0], ranks[1], ranks[2], ranks[3], ranks[4]]
+                ranks: ranks.clone()
             })
         }
+
+        None
+    }
+
+    fn are_ranks_sequential(ranks: &Vec<Rank>) -> bool {
+        let len = ranks.len();
+        let vec1 = &ranks[..len - 1];
+        let vec2 = &ranks[1..len];      // offset them by one
+
+        vec1.iter().zip(vec2.iter())
+            .map(|(r1, r2)| (*r1 as i8, *r2 as i8))
+            .fold(true, |acc, (r1, r2)|
+                if acc == false { acc }
+                else { (r1 - r2).abs() == 1 }
+            )
     }
 
     fn are_cards_of_same_suite(cards: &Vec<Card>) -> bool {
-        let suite = cards[0].suite;
-        for card in cards.iter() {
-            if suite != card.suite {
-                return false;
-            }
-        }
-        true
+        cards.iter()
+            .filter(|c| c.suite != cards[0].suite)
+            .collect::<Vec<&Card>>()
+            .len() == 0
     }
 
     fn get_full_house(g: &RankGroupMap) -> Option<Combo> {
