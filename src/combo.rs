@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use crate::hand::{ Rank, Card };
 
@@ -64,8 +65,7 @@ impl <'a>RankGroupMap<'a> {
 
 impl Combo {
     pub fn new(cards: &Vec<Card>) -> Self {
-        let ranks = Combo::to_ranks(cards);
-        let rank_groups = Combo::enumerate(&ranks);
+        let rank_groups = Combo::get_rank_groups(cards);
 
         if      let Some(c) = Combo::get_full_house(&rank_groups) { c }
         else if let Some(c) = Combo::get_four_of_a_kind(&rank_groups) { c }
@@ -80,16 +80,16 @@ impl Combo {
         }
     }
 
-    fn to_ranks(cards: &Vec<Card>) -> Vec<Rank> {
-        let mut ranks: Vec<Rank> = cards.iter()
-            .map(|c| c.rank)
-            .collect();
-        ranks.sort();
-        ranks
+    fn get_rank_groups<'a>(cards: &Vec<Card>) -> RankGroupMap<'a> {
+        cards.iter()
+            .map(Card::to_rank)
+            .fold(HashMap::new(), Combo::keep_count)
+            .iter()
+            .fold(RankGroupMap::new(), Combo::group_ranks)
     }
 
-    fn count_each_rank(mut acc: HashMap<Rank, u8>, rank: &Rank) -> HashMap<Rank, u8> {
-        let count = acc.entry(*rank).or_insert(0);
+    fn keep_count<T: Eq + Hash>(mut acc: HashMap<T, u8>, key: T) -> HashMap<T, u8> {
+        let count = acc.entry(key).or_insert(0);
         *count += 1;
         acc
     }
@@ -109,14 +109,6 @@ impl Combo {
         };
 
         acc
-    }
-
-    fn enumerate(ranks: &Vec<Rank>) -> RankGroupMap {
-        ranks
-            .iter()
-            .fold(HashMap::new(), Combo::count_each_rank)
-            .iter()
-            .fold(RankGroupMap::new(), Combo::group_ranks)
     }
 
     fn get_straight(g: &RankGroupMap) -> Option<Combo> {

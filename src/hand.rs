@@ -39,6 +39,12 @@ pub struct Hand<'a> {
     pub combo: Combo
 }
 
+impl Card {
+    pub fn to_rank(card: &Card) -> Rank {
+        card.rank
+    }
+}
+
 impl Suite {
     fn new(input: &str) -> Option<Self> {
         match input {
