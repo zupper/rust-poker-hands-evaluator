@@ -158,9 +158,7 @@ impl Combo {
 
     fn are_cards_of_same_suite(cards: &Vec<Card>) -> bool {
         cards.iter()
-            .filter(|c| c.suite != cards[0].suite)
-            .collect::<Vec<&Card>>()
-            .len() == 0
+            .all(|c| c.suite == cards[0].suite)
     }
 
     fn get_full_house(g: &RankGroupMap) -> Option<Combo> {
