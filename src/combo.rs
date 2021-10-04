@@ -136,21 +136,11 @@ impl Combo {
     }
 
     fn are_ranks_sequential(ranks: &Vec<Rank>) -> bool {
-        let len = ranks.len();
-        let vec1 = &ranks[..len - 1];
-        let vec2 = &ranks[1..len];      // offset them by one
-
-        vec1.iter().zip(vec2.iter())
-            .map(|(r1, r2)| (*r1 as i8, *r2 as i8))
-            .fold(true, |acc, (r1, r2)|
-                if acc == false { acc }
-                else { (r1 - r2).abs() == 1 }
-            )
-    }
-
-    fn are_cards_of_same_suite(cards: &Vec<Card>) -> bool {
-        cards.iter()
-            .all(|c| c.suite == cards[0].suite)
+        ranks
+            .windows(2)
+            .map(|pair| (pair[0] as i8, pair[1] as i8))
+            .map(|(r1, r2)| (r1 - r2).abs())
+            .all(|diff| diff == 1)
     }
 
     fn get_full_house(g: &RankGroupMap) -> Option<Combo> {
@@ -222,6 +212,11 @@ impl Combo {
         }
 
         None
+    }
+
+    fn are_cards_of_same_suite(cards: &Vec<Card>) -> bool {
+        cards.iter()
+            .all(|c| c.suite == cards[0].suite)
     }
 
     fn get_high_card(g: &RankGroupMap) -> Option<Combo> {
